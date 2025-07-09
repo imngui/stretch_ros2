@@ -141,6 +141,15 @@ class StretchMujocoDriver(Node):
             ),
         )
 
+        # sim = StretchMujocoSimulator(
+        #     model=model,
+        #     camera_hz=10,
+        #     cameras_to_use=(
+        #         # StretchCameras.all() if use_cameras else StretchCameras.none()
+        #         StretchCameras.d435i_rgb()
+        #     ),
+        # )
+
         sim.start(headless=not use_mujoco_viewer)
 
         self.sim = sim
@@ -235,6 +244,21 @@ class StretchMujocoDriver(Node):
 
         qpos = msg.data
         self.move_to_position(qpos)
+        self.robot_mode_rwlock.release_read()
+
+    def set_head_velocity_callback(self, msg):
+        self.robot_mode_rwlock.acquire_read()
+        if not self.robot_mode in ['position', 'navigation']:
+            self.get_logger().error('{0} must be in position or navigation mode with streaming_position activated ' 
+                                    'enabled to receive command to head_vel. '
+                                    'Current mode = {1}.'.format(self.node_name, self.robot_mode))
+            self.robot_mode_rwlock.release_read()
+            return
+
+        # Set velocity for head_pan
+        self.sim.move_by(Actuators.head_pan, msg.data[0])
+        # Set velocity for head_tilt  
+        self.sim.move_by(Actuators.head_tilt, msg.data[1])
         self.robot_mode_rwlock.release_read()
 
     def move_to_position(self, qpos):
@@ -1242,6 +1266,14 @@ class StretchMujocoDriver(Node):
             self.set_robot_streaming_position_callback,
             1,
             callback_group=self.main_group,
+        )
+
+        self.create_subscription(
+            Float64MultiArray,
+            "head_vel",
+            self.set_head_velocity_callback,
+            1,
+            callback_group=self.main_group
         )
 
         self.declare_parameter("rate", DEFAULT_JOINT_STATE_HZ)
