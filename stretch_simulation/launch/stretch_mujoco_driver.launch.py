@@ -218,6 +218,7 @@ def generate_launch_description():
             remappings=[
                 ("cmd_vel", "/stretch/cmd_vel"),
                 ("joint_states", "/stretch/joint_states"),
+                ("head_vel", "/stretch/head_vel"),
             ],
             parameters=stretch_driver_params,
             # arguments=["--ros-args", "--log-level", "debug"],
